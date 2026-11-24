@@ -25,6 +25,8 @@
 #include "storage/tf_usb_disk_mode.h"
 #include "storage/usb_storage.h"
 #include "time_sync/time_sync_service.h"
+#include "tailscale/tailscale_service.h"
+#include "qrcodegen.h"
 #include "ui_audio_background.h"
 #include "ui_hw_textarea_input.h"
 #include "ui_number_input.h"
@@ -86,6 +88,7 @@ static void render_file_manager_page(lv_obj_t *parent);
 static void render_screensaver_settings_page(lv_obj_t *parent);
 static void render_firmware_update_page(lv_obj_t *parent);
 static void render_system_info_page(lv_obj_t *parent);
+static void render_tailscale_page(lv_obj_t *parent);
 static void update_system_info_time_label(void);
 static int settings_parse_int_text(const char *text, bool *ok);
 static lv_obj_t *create_number_input_row(lv_obj_t *parent,
@@ -103,6 +106,7 @@ static const settings_page_def_t s_pages[] = {
     {"待机屏保", LV_SYMBOL_IMAGE, render_screensaver_settings_page},
     {"固件升级", LV_SYMBOL_UPLOAD, render_firmware_update_page},
     {"系统信息", LV_SYMBOL_LIST, render_system_info_page},
+    {"Tailscale", LV_SYMBOL_WIFI, render_tailscale_page},
 };
 
 static const board_i2c_device_t s_board_i2c_devices[] = {
@@ -222,6 +226,18 @@ static lv_obj_t *s_timezone_button_labels[APP_SETTINGS_TIMEZONE_COUNT] = {NULL};
 static lv_obj_t *s_timezone_dialog_overlay = NULL;
 static lv_obj_t *s_timezone_dialog_value_label = NULL;
 static int s_timezone_dialog_offset_minutes = 0;
+static lv_obj_t *s_tailscale_status_label = NULL;
+static lv_obj_t *s_tailscale_ip_label = NULL;
+static lv_obj_t *s_tailscale_name_label = NULL;
+static lv_obj_t *s_tailscale_enable_checkbox = NULL;
+static lv_obj_t *s_tailscale_login_section = NULL;
+static lv_obj_t *s_tailscale_login_hint_label = NULL;
+static lv_obj_t *s_tailscale_url_label = NULL;
+static lv_obj_t *s_tailscale_qr_canvas = NULL;
+static lv_obj_t *s_tailscale_auth_failed_hint = NULL;
+static lv_timer_t *s_tailscale_status_timer = NULL;
+static uint8_t *s_tailscale_qr_buf = NULL;
+static char s_tailscale_last_url[MICROLINK_AUTH_URL_MAX] = {0};
 
 static void close_config_password_dialog(void);
 static void close_usb_format_dialog(void);
@@ -270,5 +286,6 @@ static bool settings_ensure_screensaver_dir_entries(void)
 #include "settings/ui_settings_screensaver.inc"
 #include "settings/ui_settings_other.inc"
 #include "settings/ui_settings_pages.inc"
+#include "settings/ui_settings_tailscale.inc"
 #include "settings/ui_settings_file_manager.inc"
 #include "settings/ui_settings_create.inc"

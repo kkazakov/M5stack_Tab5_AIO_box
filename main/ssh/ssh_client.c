@@ -6,6 +6,7 @@
 
 #include "libssh_esp32.h"
 #include <libssh/libssh.h>
+#include "tailscale_service.h"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
@@ -32,6 +33,7 @@ struct ssh_client {
     bool running;
     bool connecting;
     bool cancel_requested;
+    microlink_tcp_socket_t *ts_sock; /* Tailscale transport; its fd is handed to libssh */
     TaskHandle_t task;
     TickType_t last_activity_tick;
     ssh_data_cb_t data_cb;
@@ -45,6 +47,16 @@ static void emit_event(ssh_client_t *client, ssh_event_t event, const char *reas
 {
     if (client && client->event_cb) {
         client->event_cb(event, reason, client->user_data);
+    }
+}
+
+/* Close the Tailscale transport if present. Safe to call repeatedly; must be
+ * called only after the SSH session (which borrowed the fd) is freed. */
+static void ts_sock_close(ssh_client_t *client)
+{
+    if (client && client->ts_sock) {
+        microlink_tcp_close(client->ts_sock);
+        client->ts_sock = NULL;
     }
 }
 
@@ -198,6 +210,37 @@ esp_err_t ssh_client_connect_handle(ssh_client_t *client,
     ssh_options_set(client->session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
     ssh_options_set(client->session, SSH_OPTIONS_HOSTKEYS, SSH_HOSTKEY_PREF);
 
+    /* Autodetect: hosts that resolve to a tailnet peer ride the Tailscale
+     * tunnel. microlink_tcp_connect() triggers the WG handshake, waits for
+     * the tunnel and returns an already-connected TCP socket; its fd is
+     * handed to libssh (SSH_OPTIONS_FD), which then skips DNS and socket
+     * creation. SSH_OPTIONS_HOST stays the original hostname so known-host
+     * trust is keyed to the same name regardless of transport. */
+    uint32_t peer_ip = tailscale_service_resolve_peer(cfg->host);
+    if (peer_ip != 0) {
+        if (!tailscale_service_is_connected()) {
+            ssh_free(client->session);
+            client->session = NULL;
+            client->connecting = false;
+            emit_event(client, SSH_EVT_ERROR, "Tailscale not connected");
+            return ESP_ERR_INVALID_STATE;
+        }
+        client->ts_sock = microlink_tcp_connect(tailscale_service_get_handle(),
+                                                peer_ip, (uint16_t)port, 15000);
+        if (!client->ts_sock) {
+            ssh_free(client->session);
+            client->session = NULL;
+            client->connecting = false;
+            emit_event(client, SSH_EVT_ERROR, "Tailscale peer unreachable");
+            return ESP_FAIL;
+        }
+        int ts_fd = microlink_tcp_get_fd(client->ts_sock);
+        ssh_options_set(client->session, SSH_OPTIONS_FD, &ts_fd);
+        char ts_ip[16];
+        microlink_ip_to_str(peer_ip, ts_ip);
+        ESP_LOGI(TAG, "Connecting to tailnet peer %s (%s) via Tailscale", cfg->host, ts_ip);
+    }
+
     int rc = ssh_connect(client->session);
     if (client->cancel_requested) {
         goto cleanup_cancelled;
@@ -208,6 +251,7 @@ esp_err_t ssh_client_connect_handle(ssh_client_t *client,
         ESP_LOGE(TAG, "ssh_connect failed: %s", reason);
         ssh_free(client->session);
         client->session = NULL;
+        ts_sock_close(client);
         client->connecting = false;
         emit_event(client, SSH_EVT_ERROR, reason);
         return ESP_FAIL;
@@ -222,6 +266,7 @@ esp_err_t ssh_client_connect_handle(ssh_client_t *client,
         ssh_disconnect(client->session);
         ssh_free(client->session);
         client->session = NULL;
+        ts_sock_close(client);
         client->connecting = false;
         emit_event(client, SSH_EVT_ERROR, reason);
         return ESP_FAIL;
@@ -238,6 +283,7 @@ esp_err_t ssh_client_connect_handle(ssh_client_t *client,
         ssh_disconnect(client->session);
         ssh_free(client->session);
         client->session = NULL;
+        ts_sock_close(client);
         client->connecting = false;
         emit_event(client, SSH_EVT_AUTH_FAILED, reason);
         return ESP_ERR_INVALID_ARG;
@@ -252,6 +298,7 @@ esp_err_t ssh_client_connect_handle(ssh_client_t *client,
         ssh_disconnect(client->session);
         ssh_free(client->session);
         client->session = NULL;
+        ts_sock_close(client);
         client->connecting = false;
         return ESP_FAIL;
     }
@@ -334,6 +381,7 @@ cleanup:
         ssh_free(client->session);
         client->session = NULL;
     }
+    ts_sock_close(client);
     client->connecting = false;
     return ESP_FAIL;
 
@@ -347,6 +395,7 @@ cleanup_cancelled:
         ssh_free(client->session);
         client->session = NULL;
     }
+    ts_sock_close(client);
     client->running = false;
     client->connecting = false;
     return ESP_ERR_INVALID_STATE;
@@ -406,6 +455,7 @@ void ssh_client_disconnect_handle(ssh_client_t *client)
         ssh_free(client->session);
         client->session = NULL;
     }
+    ts_sock_close(client);
     client->cancel_requested = false;
     ESP_LOGI(TAG, "SSH disconnected");
 }

@@ -126,6 +126,15 @@ static void close_settings(void)
         lv_timer_delete(s_system_info_time_timer);
         s_system_info_time_timer = NULL;
     }
+    if (s_tailscale_status_timer) {
+        lv_timer_delete(s_tailscale_status_timer);
+        s_tailscale_status_timer = NULL;
+    }
+    if (s_tailscale_qr_buf) {
+        heap_caps_free(s_tailscale_qr_buf);
+        s_tailscale_qr_buf = NULL;
+    }
+    s_tailscale_last_url[0] = '\0';
     ui_number_input_close();
     screensaver_color_close_dialog();
     close_screensaver_dir_picker();

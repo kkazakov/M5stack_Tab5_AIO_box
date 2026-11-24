@@ -14,8 +14,12 @@ This repository contains the project's own source code plus vendored third-party
 | libssh_esp32 / libssh | local port | LGPL-2.1; some parts BSD-2-Clause | `components/libssh_esp32/COPYING`, `components/libssh_esp32/BSD` |
 | FatFs | R0.15 patch2 | FatFs license (BSD-style) | header of `components/fatfs/src/ff.c` |
 | esp_lcd_st7121 | local | Apache-2.0 | SPDX header in `components/esp_lcd_st7121/esp_lcd_st7121.c` |
+| MicroLink (Tailscale-compatible client) | commit `1cb8d1c` (registry v2.3.0 base) | MIT; bundled wireguard-lwip BSD-3-Clause; bundled X25519 under its own license | `components/microlink/LICENSE`, `components/microlink/components/wireguard_lwip/LICENSE`, `components/microlink/components/wireguard_lwip/src/crypto/refc/x25519-license.txt` |
+| QR Code generator (Project Nayuki) | vendored from upstream | MIT | header of `components/qrcodegen/qrcodegen.c` |
 
 `libssh_esp32` is distributed under the LGPL-2.1. The complete corresponding source is included in this repository, so the firmware can be rebuilt with a modified or relinked libssh. Some libssh files are under the BSD-2-Clause license; see `components/libssh_esp32/BSD`.
+
+`microlink`, an independent Tailscale-compatible client, is MIT-licensed and carries one local patch in this repository — `microlink_tcp_get_fd()`, which exposes the file descriptor of a connected TCP socket to libssh (recorded in `components/microlink/VENDORED_FROM.txt`). Its bundled WireGuard implementation (wireguard-lwip) is BSD-3-Clause, and the bundled X25519 implementation keeps its own license file. `qrcodegen`, used by the Tailscale settings page to render the login QR code, is MIT-licensed; see `components/qrcodegen/QRCODEGEN_FROM.txt`.
 
 ## Managed Components Fetched During Build
 

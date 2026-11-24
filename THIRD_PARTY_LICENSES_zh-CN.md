@@ -14,8 +14,12 @@
 | libssh_esp32 / libssh | 本地移植 | LGPL-2.1；部分文件为 BSD-2-Clause | `components/libssh_esp32/COPYING`、`components/libssh_esp32/BSD` |
 | FatFs | R0.15 patch2 | FatFs 许可证（BSD 风格） | `components/fatfs/src/ff.c` 文件头 |
 | esp_lcd_st7121 | 本地 | Apache-2.0 | `components/esp_lcd_st7121/esp_lcd_st7121.c` 中的 SPDX 声明 |
+| MicroLink（Tailscale 兼容客户端） | 提交 `1cb8d1c`（基于注册表 v2.3.0） | MIT；内嵌 wireguard-lwip 为 BSD-3-Clause；内嵌 X25519 遵循其自身许可证 | `components/microlink/LICENSE`、`components/microlink/components/wireguard_lwip/LICENSE`、`components/microlink/components/wireguard_lwip/src/crypto/refc/x25519-license.txt` |
+| QR Code 生成库（Project Nayuki） | 来自上游源码 | MIT | `components/qrcodegen/qrcodegen.c` 文件头 |
 
 `libssh_esp32` 以 LGPL-2.1 分发。本仓库包含完整的对应源码，因此可以用修改过或重新链接的 libssh 重新构建固件。部分 libssh 文件采用 BSD-2-Clause 许可证；见 `components/libssh_esp32/BSD`。
+
+`microlink` 是独立的 Tailscale 兼容客户端，采用 MIT 许可证，本仓库对其包含一处本地补丁——`microlink_tcp_get_fd()`，用于把已连接 TCP 套接字的文件描述符交给 libssh（记录见 `components/microlink/VENDORED_FROM.txt`）。其内嵌的 WireGuard 实现（wireguard-lwip）为 BSD-3-Clause，内嵌的 X25519 实现保留自己的许可证文件。`qrcodegen` 用于 Tailscale 设置页渲染登录二维码，采用 MIT 许可证；见 `components/qrcodegen/QRCODEGEN_FROM.txt`。
 
 ## 构建期间获取的托管组件
 

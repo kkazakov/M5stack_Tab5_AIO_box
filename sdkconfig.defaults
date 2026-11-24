@@ -126,3 +126,24 @@ CONFIG_LWIP_TCP_RECVMBOX_SIZE=48
 # CONFIG_LWIP_TCP_SACK_OUT is not set
 CONFIG_LWIP_UDP_RECVMBOX_SIZE=6
 CONFIG_LWIP_SNTP_MAX_SERVERS=4
+
+# ── Tailscale (vendored MicroLink component, client-only) ──────────────────
+# Interactive (QR) login: no auth key is compiled into the firmware.
+CONFIG_ML_TAILSCALE_AUTH_KEY=""
+# Peer table size; PSRAM-backed map buffers, raise for large tailnets.
+CONFIG_ML_MAX_PEERS=32
+# Home DERP region (9 = Dallas, the MicroLink default). If you are not in
+# North America set the nearest region: IDs are printed in the boot log and
+# listed by `tailscale netcheck`.
+CONFIG_ML_DERP_REGION=9
+CONFIG_ML_DERP_VERIFY_CERT=y
+# The Tab5 manages Wi-Fi itself (esp_hosted on the ESP32-C6): MicroLink must
+# never bring up Wi-Fi, switch networks, or touch cellular.
+CONFIG_ML_ENABLE_NET_SWITCH=n
+CONFIG_ML_ENABLE_CELLULAR=n
+# Client-only: no subnet router / exit node, no config web UI.
+CONFIG_ML_SUBNET_ROUTER=n
+CONFIG_ML_ENABLE_CONFIG_HTTPD=n
+# This firmware confirms its own OTA updates; keep MicroLink's rollback logic
+# out of the boot verification path (inert while bootloader rollback is off).
+CONFIG_ML_OTA_ROLLBACK=n

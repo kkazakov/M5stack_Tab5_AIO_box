@@ -12,6 +12,7 @@ This repository hosts the full firmware source. The previously published release
 
 - **SSH terminal** — multiple saved servers, password authentication, PTY shell, ANSI/VT100 parsing, UTF-8 and wide-character rendering on an LVGL canvas.
 - **Wi-Fi management** — scan, connect, saved credentials, auto-connect, IPv4/IPv6 status. The ESP32-P4 uses the onboard ESP32-C6 through SDIO (`esp_hosted` + `esp_wifi_remote`).
+- **Tailscale (optional, client-only)** — the device joins your tailnet as the node `tab5` with its own `100.x.y.z` address and QR-code login; the SSH terminal reaches tailnet servers from anywhere, with per-host autodetect routing. Manage it under *Settings → Tailscale*.
 - **TF card file manager** — browse, copy, cut, paste, rename, delete, batch actions, text and image viewers with EXIF metadata, MP3/FLAC playback.
 - **Web file manager** — browser-based file access over Wi-Fi.
 - **OTA maintenance** — main firmware and factory updater update checks, download to the TF card, version and package verification.
@@ -55,9 +56,10 @@ This split was a deliberate design choice to keep OTA reliable while allowing th
 ## Repository Layout
 
 ```text
-main/                  Main firmware: UI, SSH, terminal, file manager, audio, OTA
+main/                  Main firmware: UI, SSH, terminal, file manager, audio, OTA,
+                       Tailscale service and settings
 components/            Vendored components: LVGL 9.2.2, esp_lvgl_port, Tab5 BSP,
-                       libssh_esp32, FatFs
+                       libssh_esp32, FatFs, MicroLink (Tailscale client), qrcodegen
 Update_project/        Small factory-partition updater; see Update_project/README.md
                        for its design rationale and update protocol
 doc/                   M5Stack Tab5 hardware reference PDFs
@@ -93,7 +95,7 @@ The prebuilt images are a release snapshot and may not match the current source 
 
 ## Documentation
 
-- [BUILDING.md](BUILDING.md) — build, flash, updater, and partition reference.
+- [BUILDING.md](BUILDING.md) — build, flash, updater, partition, and Tailscale reference.
 - [Update_project/README.md](Update_project/README.md) — factory updater design, TF update protocol, and standalone build.
 - [DEVELOPMENT.md](DEVELOPMENT.md) — architecture, module boundaries, key flows, and maintenance notes (Chinese).
 - [release/QUICK_START_GUIDE.md](release/QUICK_START_GUIDE.md) — English quick-start guide.
@@ -103,6 +105,8 @@ The prebuilt images are a release snapshot and may not match the current source 
 ## Privacy
 
 SSH credentials are stored with AES-256-GCM encryption. Configuration backups can be exported as encrypted or plain archives. Except for the OTA manifest and firmware download requests, the firmware does not send SSH, Wi-Fi, or file data to external services.
+
+When the optional Tailscale feature is enabled, the device additionally contacts Tailscale's coordination service (`controlplane.tailscale.com`) to register and receive peer updates, and may exchange encrypted WireGuard packets through Tailscale DERP relays and STUN servers while establishing direct connections. Only connection metadata (device name, node keys) and encrypted tunnel traffic leave the device; SSH and file data inside the tunnel remain end-to-end encrypted. Disable the feature under *Settings → Tailscale* to stop all Tailscale network activity.
 
 ## License
 

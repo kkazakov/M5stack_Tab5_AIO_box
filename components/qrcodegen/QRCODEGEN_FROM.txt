@@ -1,0 +1,3 @@
+Vendored from https://github.com/nayuki/QR-Code-generator (c/ directory)
+License: MIT (notice in each source file)
+Used by the Tailscale settings page to render the login URL as a QR code.

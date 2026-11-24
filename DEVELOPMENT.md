@@ -151,6 +151,8 @@ LVGL 不是线程安全的。主动创建 UI 时需要 `bsp_display_lock()/bsp_d
 |   |-- main.c
 |   |-- app_config.h
 |   |-- wifi_manager.c/.h
+|   |-- tailscale/
+|   |   `-- tailscale_service.c/.h
 |   |-- storage/
 |   |   `-- server_config.c/.h
 |   |-- ssh/
@@ -170,6 +172,8 @@ LVGL 不是线程安全的。主动创建 UI 时需要 `bsp_display_lock()/bsp_d
 |-- components/
 |   |-- m5stack_tab5/
 |   |-- libssh_esp32/
+|   |-- microlink/
+|   |-- qrcodegen/
 |   `-- lvgl/
 |-- managed_components/
 |-- sdkconfig.defaults
@@ -180,6 +184,7 @@ LVGL 不是线程安全的。主动创建 UI 时需要 `bsp_display_lock()/bsp_d
 模块边界：
 
 - `wifi_manager` 不直接操作 UI，只提供状态、扫描、连接、凭据接口。
+- `tailscale_service` 不操作 UI，只提供 VPN 状态、登录 URL、对端解析与 SSH 传输接入。
 - `server_config` 不关心 UI，只保存固定结构体。
 - `ssh_client` 不解析终端，只把 SSH 字节通过回调交出去。
 - `ansi_parser` 不画图，只维护 `term_state_t`。
@@ -1442,3 +1447,34 @@ UI 限制：
 4. `term_renderer` 只把 `term_state_t` 画出来。
 
 只要这四条边界不乱，后续扩展会比较稳。
+
+---
+
+## 28. Tailscale（可选，客户端模式）
+
+设备以 **`tab5`** 身份加入 tailnet，获得自己的 `100.x.y.z` 地址。仅客户端：不对外暴露服务、不做子网路由/exit node，只接受对自身流量的回复。SSH 终端连接服务器时按主机名/IP 自动识别 tailnet 目标并走隧道，其余流量不变。
+
+### 组件与模块
+
+- `components/microlink/`：独立 Tailscale 兼容客户端（MIT），本地 vendor 自上游提交 `1cb8d1c`。包含一处本地补丁 `microlink_tcp_get_fd()`（见 `VENDORED_FROM.txt`）。
+- `components/qrcodegen/`：Nayuki QR 生成库（MIT），渲染登录二维码。
+- `main/tailscale/tailscale_service.c/.h`：生命周期跟随 Wi-Fi（CONNECTED 启动、断开停止）；启用开关走 `app_settings`（NVS key `tailscale_en`，默认开）；500 ms 轮询任务调和启停并转发状态；`ML_STATE_NEEDS_LOGIN` 时经 `tailscale_service_get_auth_url()` 提供登录 URL。
+- `main/ssh/ssh_client.c`：连接前 `tailscale_service_resolve_peer()`（`100.64/10` 直连 IP 或对端名 → 隧道，否则原路径）。隧道路径用 `microlink_tcp_connect()`（触发 WG 握手并等待隧道就绪）取得已连接 TCP 套接字，再把 fd 交给 libssh（`SSH_OPTIONS_FD`，本移植版 libssh 不会关闭该 fd），会话结束后用 `microlink_tcp_close()` 释放；所有 7 条清理路径都已覆盖。已知主机信任仍按主机名维护。
+- `main/ui/settings/ui_settings_tailscale.inc`：设置第 7 页——启用开关、状态/VPN 地址/设备名（1 s 定时器刷新）、`NEEDS_LOGIN` 时显示二维码与链接（qrcodegen → RGB565 Canvas，PSRAM 缓冲）、`AUTH_FAILED` 提示。关闭设置页时清理定时器与 QR 缓冲。
+
+### 已知限制
+
+- 隧道内仅 IPv4（无 `fd7a:…`）；不支持 MagicDNS 服务器查询，但支持按对端名/FQDN 前缀匹配解析。
+- 交互登录注册的节点密钥过期后无法自续期：后台需关闭该设备的 key expiry，或改用 auth key。
+- 默认跟踪 32 个对端（`CONFIG_ML_MAX_PEERS`）；DERP 区域默认 9（Dallas），欧洲部署请按启动日志/netcheck 调整为最近区域。
+
+### 安全
+
+- microlink 的设备/节点密钥明文存于 NVS；部署设备建议开启 NVS 加密与 flash 加密。
+- 登录 URL 在未使用前相当于凭据：会打印到串口日志，勿外泄日志。
+
+### 验证
+
+1. `tailscale ping tab5`（应直连或经 DERP 可达）。
+2. SSH 到 tailnet 主机，日志应出现 `Connecting to tailnet peer <host> (100.x.y.z) via Tailscale`。
+3. 关闭启用开关后 1 s 内 VPN 停止，重启后保持关闭。

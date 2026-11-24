@@ -1,0 +1,24 @@
+Vendored from https://github.com/CamM2325/microlink
+Commit: 1cb8d1c8a8408ad1b9a339b18bed3e970b71dafe (2026-11-18, "test: endpoint roaming on the receive path")
+License: MIT
+Do not edit; upstream via git. Local patches (P4/esp_hosted) should be tracked in DEVELOPMENT.md.
+
+Local patches:
+  1. microlink_tcp_get_fd() added to include/microlink.h + src/ml_tcp.c:
+     exposes the fd of a connected TCP socket so the SSH client can hand it
+     to libssh via SSH_OPTIONS_FD (ownership stays with the handle).
+  2. CMakeLists.txt: component-wide -Wno-error=stringop-truncation.
+     Build-compat with the GCC 14 riscv32 toolchain shipped with ESP-IDF
+     v5.5.x: MicroLink's strncpy() call sites are immediately followed by an
+     explicit NUL terminator, so the warnings are false positives (same
+     pattern as upstream's x25519.c -Wno-stringop-overread workaround).
+  3. microlink_internal.h: ML_CTRL_PROTOCOL_VER bumped 131 → 152
+     (current). 152 gates hybrid post-quantum handshakes as an opt-in
+     capability that MicroLink does not advertise, so the server falls
+     back to classical X25519. The console requires the current
+     capability version to allow IP editing and other features.
+  4. Hostinfo identity for the admin console: OS reports "linux"
+     (upstream default), OSVersion reports "1.104.7" (the console
+     derives the device's client version from this string, and gates
+     features such as IP editing on it), and DeviceModel reports
+     "M5Stack Tab5" for branding.

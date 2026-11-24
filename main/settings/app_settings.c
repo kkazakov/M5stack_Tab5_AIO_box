@@ -17,6 +17,7 @@ static const char *TAG = "app_settings";
 #define SETTINGS_NVS_CHARGE_FAST_KEY "chg_fast"
 #define SETTINGS_NVS_IMAGE_EXIF_KEY "img_exif"
 #define SETTINGS_NVS_THREE_FINGER_SCREENSHOT_KEY "ss_3finger"
+#define SETTINGS_NVS_TAILSCALE_ENABLED_KEY "tailscale_en"
 #define SETTINGS_NVS_AUDIO_VOLUME_KEY "aud_vol"
 #define SETTINGS_NVS_AUDIO_BAR_WIDTH_KEY "aud_bar_w"
 #define SETTINGS_NVS_AUDIO_BAR_X_KEY "aud_bar_x"
@@ -57,6 +58,7 @@ static app_timezone_t s_timezone = APP_SETTINGS_TIMEZONE_BEIJING;
 static int s_utc_offset_minutes = 0;
 static bool s_timezone_configured;
 static bool s_boot_auto_charge_enabled = APP_SETTINGS_DEFAULT_BOOT_AUTO_CHARGE_ENABLED;
+static bool s_tailscale_enabled = APP_SETTINGS_DEFAULT_TAILSCALE_ENABLED;
 static bool s_charge_fast_enabled = APP_SETTINGS_DEFAULT_CHARGE_FAST_ENABLED;
 static bool s_image_exif_enabled = APP_SETTINGS_DEFAULT_IMAGE_EXIF_ENABLED;
 static bool s_three_finger_screenshot_enabled =
@@ -436,6 +438,7 @@ esp_err_t app_settings_init(void)
     uint8_t saved_timezone = APP_SETTINGS_TIMEZONE_BEIJING;
     int32_t saved_utc_offset_minutes = 0;
     uint8_t saved_boot_auto_charge = APP_SETTINGS_DEFAULT_BOOT_AUTO_CHARGE_ENABLED ? 1 : 0;
+    uint8_t saved_tailscale_enabled = APP_SETTINGS_DEFAULT_TAILSCALE_ENABLED ? 1 : 0;
     uint8_t saved_charge_fast = APP_SETTINGS_DEFAULT_CHARGE_FAST_ENABLED ? 1 : 0;
     uint8_t saved_image_exif = APP_SETTINGS_DEFAULT_IMAGE_EXIF_ENABLED ? 1 : 0;
     uint8_t saved_three_finger_screenshot =
@@ -488,6 +491,7 @@ esp_err_t app_settings_init(void)
         s_image_exif_enabled = APP_SETTINGS_DEFAULT_IMAGE_EXIF_ENABLED;
         s_three_finger_screenshot_enabled =
             APP_SETTINGS_DEFAULT_THREE_FINGER_SCREENSHOT_ENABLED;
+        s_tailscale_enabled = APP_SETTINGS_DEFAULT_TAILSCALE_ENABLED;
         set_default_screensaver_settings();
         return ESP_OK;
     }
@@ -507,6 +511,7 @@ esp_err_t app_settings_init(void)
         s_image_exif_enabled = APP_SETTINGS_DEFAULT_IMAGE_EXIF_ENABLED;
         s_three_finger_screenshot_enabled =
             APP_SETTINGS_DEFAULT_THREE_FINGER_SCREENSHOT_ENABLED;
+        s_tailscale_enabled = APP_SETTINGS_DEFAULT_TAILSCALE_ENABLED;
         set_default_screensaver_settings();
         return err;
     }
@@ -526,6 +531,9 @@ esp_err_t app_settings_init(void)
     esp_err_t boot_charge_err = nvs_get_u8(h,
                                            SETTINGS_NVS_BOOT_AUTO_CHARGE_KEY,
                                            &saved_boot_auto_charge);
+    esp_err_t tailscale_en_err = nvs_get_u8(h,
+                                             SETTINGS_NVS_TAILSCALE_ENABLED_KEY,
+                                             &saved_tailscale_enabled);
     esp_err_t charge_fast_err = nvs_get_u8(h, SETTINGS_NVS_CHARGE_FAST_KEY, &saved_charge_fast);
     esp_err_t image_exif_err = nvs_get_u8(h, SETTINGS_NVS_IMAGE_EXIF_KEY, &saved_image_exif);
     esp_err_t three_finger_screenshot_err =
@@ -779,6 +787,15 @@ esp_err_t app_settings_init(void)
         s_boot_auto_charge_enabled = APP_SETTINGS_DEFAULT_BOOT_AUTO_CHARGE_ENABLED;
     }
 
+    if (tailscale_en_err == ESP_OK) {
+        s_tailscale_enabled = saved_tailscale_enabled != 0;
+    } else if (tailscale_en_err == ESP_ERR_NVS_NOT_FOUND) {
+        s_tailscale_enabled = APP_SETTINGS_DEFAULT_TAILSCALE_ENABLED;
+    } else {
+        ESP_LOGW(TAG, "load tailscale enabled failed: %s", esp_err_to_name(tailscale_en_err));
+        s_tailscale_enabled = APP_SETTINGS_DEFAULT_TAILSCALE_ENABLED;
+    }
+
     if (charge_fast_err == ESP_OK) {
         s_charge_fast_enabled = saved_charge_fast != 0;
     } else if (charge_fast_err == ESP_ERR_NVS_NOT_FOUND) {
@@ -926,6 +943,19 @@ esp_err_t app_settings_set_boot_auto_charge_enabled(bool enabled)
     return save_u8_setting(SETTINGS_NVS_BOOT_AUTO_CHARGE_KEY,
                            enabled ? 1 : 0,
                            "boot auto charge");
+}
+
+bool app_settings_get_tailscale_enabled(void)
+{
+    return s_tailscale_enabled;
+}
+
+esp_err_t app_settings_set_tailscale_enabled(bool enabled)
+{
+    s_tailscale_enabled = enabled;
+    return save_u8_setting(SETTINGS_NVS_TAILSCALE_ENABLED_KEY,
+                           enabled ? 1 : 0,
+                           "tailscale enabled");
 }
 
 bool app_settings_get_charge_fast_enabled(void)

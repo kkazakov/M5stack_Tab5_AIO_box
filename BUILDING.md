@@ -137,7 +137,31 @@ The main firmware fetches its OTA manifest from `OTA_UPDATE_SERVER_MANIFEST_URL`
 
 Set it to your own manifest URL before building. The server must return a manifest that lists the firmware version, size, SHA-256, download URL, changelog, and the optional factory-updater entry. The device verifies the manifest version, size, and SHA-256 before staging or installing anything.
 
-## 7. Troubleshooting
+## 7. Tailscale (Optional, Client-Only)
+
+The main firmware bundles [MicroLink](https://github.com/CamM2325/microlink) (vendored in `components/microlink`), an unofficial Tailscale-compatible VPN client, plus `qrcodegen` for QR rendering. With the feature enabled (*Settings → Tailscale*, on by default) the device joins your tailnet as the node **`tab5`** with its own `100.x.y.z` address, so the SSH terminal can reach tailnet hosts from anywhere. It is **client-only**: it does not expose services to the tailnet, act as a subnet router/exit node, or accept inbound connections beyond replies to its own traffic.
+
+### First run
+
+1. Build and flash as usual (the `CONFIG_ML_*` defaults in `sdkconfig.defaults` apply only after `idf.py fullclean` or a fresh `sdkconfig`).
+2. After Wi-Fi connects, open **Settings → Tailscale** and scan the on-screen QR code (or open the shown link) and sign in. The device appears as `tab5` (OS "Linux") in the [admin console](https://console.tailscale.com/admin/machines).
+3. **Disable key expiry** for `tab5` (Machines → ⋯ → Disable key expiry): nodes enrolled by interactive login cannot renew an expired key by themselves.
+4. Verify with `tailscale ping tab5` from another device, then connect to a tailnet host from the SSH terminal.
+
+### Relevant `sdkconfig` options (all prefixed `CONFIG_ML_`)
+
+| Option | Default here | Notes |
+| --- | --- | --- |
+| `ML_MAX_PEERS` | 32 | peers tracked (PSRAM-backed); raise for large tailnets |
+| `ML_DERP_REGION` | 9 (Dallas) | set your nearest region; region IDs are printed in the boot log and listed by `tailscale netcheck` |
+| `ML_DERP_VERIFY_CERT` | y | keep enabled |
+| `ML_TAILSCALE_AUTH_KEY` | "" | empty = interactive QR login |
+
+To disable the feature entirely, turn it off in *Settings → Tailscale* (the VPN stops within a second and stays off across reboots). To compile it out, remove `microlink`/`qrcodegen` from `main/CMakeLists.txt` and the `main/tailscale/` sources.
+
+**Security note:** MicroLink stores device and node keys in plaintext NVS. For deployed devices, enable ESP-IDF NVS encryption (and flash encryption) via menuconfig. The login URL is a credential until used — it is printed to the serial console and shown on screen; do not share logs containing it. See the Tailscale section of `DEVELOPMENT.md` for the internals.
+
+## 8. Troubleshooting
 
 - **`idf.py` is not recognized** — the ESP-IDF environment is not loaded. Run the export script for your shell.
 - **Managed component download fails** — check network/proxy access to `components.espressif.com`. The exact versions are recorded in `dependencies.lock`.

@@ -39,6 +39,7 @@ idf_component_register(
         "file_manager/web_file_manager.c"
         "hw/tab5_keyboard.c"
         "wifi_manager.c"
+        "tailscale/tailscale_service.c"
         "ssh/ssh_client.c"
         "terminal/ansi_parser.c"
         "terminal/term_renderer.c"
@@ -71,6 +72,7 @@ idf_component_register(
         "screensaver"
         "storage"
         "time_sync"
+        "tailscale"
         "terminal"
         "ui"
     REQUIRES
@@ -103,6 +105,8 @@ idf_component_register(
         usb
         usb_host_msc
         esp_tinyusb
+        qrcodegen
+        microlink
         libssh_esp32
         ${app_adf_requires}
 )

@@ -25,6 +25,7 @@
 #include "ui/ui_audio_background.h"
 #include "ui/ui_language_select.h"
 #include "wifi_manager.h"
+#include "tailscale/tailscale_service.h"
 #include "ui/ui_server_list.h"
 
 static const char *TAG = "main";
@@ -60,12 +61,13 @@ static void show_startup_splash(void)
     lv_obj_center(title);
 }
 
-static void on_wifi_state_for_time_sync(wifi_state_t state, void *user_data)
+static void on_wifi_state_changed(wifi_state_t state, void *user_data)
 {
     (void)user_data;
     if (state == WIFI_STATE_CONNECTED) {
         time_sync_service_on_wifi_connected();
     }
+    tailscale_service_on_wifi_state(state);
 }
 
 static void boot_background_task(void *arg)
@@ -90,7 +92,14 @@ static void boot_background_task(void *arg)
 
     wifi_manager_init();
     mem_diag_checkpoint("after wifi_manager_init");
-    wifi_manager_set_cb(on_wifi_state_for_time_sync, NULL);
+
+    esp_err_t tailscale_ret = tailscale_service_init();
+    if (tailscale_ret != ESP_OK) {
+        ESP_LOGW(TAG, "tailscale service init failed: %s", esp_err_to_name(tailscale_ret));
+    }
+    mem_diag_checkpoint("after tailscale_service_init");
+
+    wifi_manager_set_cb(on_wifi_state_changed, NULL);
     mem_diag_checkpoint("after wifi callback set");
 
     esp_err_t wifi_ret = wifi_manager_auto_connect();

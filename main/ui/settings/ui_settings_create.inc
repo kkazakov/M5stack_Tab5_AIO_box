@@ -107,7 +107,8 @@ void ui_settings_create(lv_obj_t *parent)
     lv_obj_set_style_pad_all(left, 12, 0);
     lv_obj_set_style_pad_row(left, 10, 0);
     lv_obj_set_flex_flow(left, LV_FLEX_FLOW_COLUMN);
-    lv_obj_clear_flag(left, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(left, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(left, LV_SCROLLBAR_MODE_AUTO);
 
     for (int i = 0; i < SETTINGS_PAGE_COUNT; ++i) {
         s_menu_buttons[i] = create_menu_button(left, i);

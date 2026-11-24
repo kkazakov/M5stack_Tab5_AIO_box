@@ -38,6 +38,7 @@ extern "C" {
 #define APP_SETTINGS_AUDIO_BAR_SCREEN_W      1280
 
 #define APP_SETTINGS_DEFAULT_BOOT_AUTO_CHARGE_ENABLED false
+#define APP_SETTINGS_DEFAULT_TAILSCALE_ENABLED true
 #define APP_SETTINGS_DEFAULT_CHARGE_FAST_ENABLED      false
 #define APP_SETTINGS_DEFAULT_IMAGE_EXIF_ENABLED       true
 #define APP_SETTINGS_DEFAULT_THREE_FINGER_SCREENSHOT_ENABLED true
@@ -167,6 +168,8 @@ const char *app_settings_get_current_timezone_tz(void);
 const char *app_settings_get_current_timezone_source_label(void);
 bool app_settings_get_boot_auto_charge_enabled(void);
 esp_err_t app_settings_set_boot_auto_charge_enabled(bool enabled);
+bool app_settings_get_tailscale_enabled(void);
+esp_err_t app_settings_set_tailscale_enabled(bool enabled);
 bool app_settings_get_charge_fast_enabled(void);
 esp_err_t app_settings_set_charge_fast_enabled(bool enabled);
 bool app_settings_get_image_exif_enabled(void);
